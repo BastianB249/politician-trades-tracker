@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
+  <h1 class="text-2xl font-semibold mb-4">About Capitol Trades Tracker</h1>
+  <p class="text-slate-600 mb-4">Capitol Trades Tracker aggregates public financial disclosure reports from US lawmakers. These disclosures can be delayed and are not real-time trading signals.</p>
+  <h2 class="text-lg font-semibold mt-6 mb-2">How performance is computed</h2>
+  <p class="text-slate-600 mb-4">For each disclosed buy transaction, we compute a simple return over 1-year and 5-year windows using local price snapshots. We also compute the same return for the S&P 500 ETF (SPY) over the exact window, and the reported "excess return" is the difference between those two averages.</p>
+  <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
+    <p class="text-slate-700 font-medium">Important disclaimer</p>
+    <p class="text-slate-600 text-sm">This website is for informational purposes only and does not constitute investment advice. Always do your own research.</p>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Capitol Trades Tracker surfaces publicly disclosed trades by US politicians." />
+  <meta name="keywords" content="politician trades, stock disclosures, Congress, transparency" />
+  <meta name="author" content="Capitol Trades Tracker" />
+  <meta property="og:title" content="Capitol Trades Tracker" />
+  <meta property="og:description" content="Search and explore public stock trade disclosures." />
+  <meta property="og:type" content="website" />
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
+  <title>Capitol Trades Tracker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-900">
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-10">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+      <a href="/" class="text-xl font-semibold text-slate-900">Capitol Trades Tracker</a>
+      <nav class="flex gap-4 text-sm text-slate-600">
+        <a href="/" class="hover:text-slate-900">Home</a>
+        <a href="/about" class="hover:text-slate-900">About</a>
+      </nav>
+    </div>
+  </header>
+  <main class="max-w-6xl mx-auto px-4 py-8">
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="border-t border-slate-200 bg-white">
+    <div class="max-w-6xl mx-auto px-4 py-6 text-sm text-slate-500 flex flex-col md:flex-row justify-between gap-2">
+      <p>Data sourced from public disclosures. Updated periodically.</p>
+      <p>Capitol Trades Tracker — not investment advice.</p>
+    </div>
+  </footer>
+  <script>
+    function initTableFilters(tableId, inputId) {
+      const table = document.getElementById(tableId);
+      const input = document.getElementById(inputId);
+      if (!table || !input) return;
+      input.addEventListener('input', () => {
+        const query = input.value.toLowerCase();
+        table.querySelectorAll('tbody tr').forEach(row => {
+          const text = row.innerText.toLowerCase();
+          row.classList.toggle('hidden', !text.includes(query));
+        });
+      });
+    }
+
+    function initSortableTable(tableId) {
+      const table = document.getElementById(tableId);
+      if (!table) return;
+      table.querySelectorAll('th[data-sort]').forEach(header => {
+        header.addEventListener('click', () => {
+          const key = header.dataset.sort;
+          const rows = Array.from(table.querySelectorAll('tbody tr'));
+          const sorted = rows.sort((a, b) => {
+            const aVal = a.dataset[key] || '';
+            const bVal = b.dataset[key] || '';
+            return aVal.localeCompare(bVal, undefined, {numeric: true});
+          });
+          sorted.forEach(row => table.querySelector('tbody').appendChild(row));
+        });
+      });
+    }
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
