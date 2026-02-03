@@ -13,10 +13,16 @@
   <title>Capitol Trades Tracker</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-50 text-slate-900">
-  <header class="bg-white border-b border-slate-200 sticky top-0 z-10">
-    <div class="max-w-6xl mx-auto px-4 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-      <a href="/" class="text-xl font-semibold text-slate-900">Capitol Trades Tracker</a>
+<body class="bg-slate-50 text-slate-900 antialiased">
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-20">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <a href="/" class="flex items-center gap-3 text-slate-900">
+        <span class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-white text-sm font-semibold">CT</span>
+        <span>
+          <span class="block text-base font-semibold leading-tight">Capitol Trades Tracker</span>
+          <span class="block text-xs text-slate-500">Public disclosure intelligence</span>
+        </span>
+      </a>
       <nav class="flex gap-4 text-sm text-slate-600">
         <a href="/" class="hover:text-slate-900">Home</a>
         <a href="/about" class="hover:text-slate-900">About</a>
@@ -33,35 +39,27 @@
     </div>
   </footer>
   <script>
-    function initTableFilters(tableId, inputId) {
-      const table = document.getElementById(tableId);
-      const input = document.getElementById(inputId);
-      if (!table || !input) return;
-      input.addEventListener('input', () => {
-        const query = input.value.toLowerCase();
-        table.querySelectorAll('tbody tr').forEach(row => {
-          const text = row.innerText.toLowerCase();
-          row.classList.toggle('hidden', !text.includes(query));
-        });
-      });
+    function formatRelativeTime(targetDate) {
+      const now = new Date();
+      const diffMs = targetDate - now;
+      const diffSec = Math.round(diffMs / 1000);
+      const absSec = Math.abs(diffSec);
+      const rtf = new Intl.RelativeTimeFormat('en', {numeric: 'auto'});
+      if (absSec < 60) return rtf.format(Math.round(diffSec), 'second');
+      const diffMin = Math.round(diffSec / 60);
+      if (Math.abs(diffMin) < 60) return rtf.format(diffMin, 'minute');
+      const diffHour = Math.round(diffMin / 60);
+      if (Math.abs(diffHour) < 24) return rtf.format(diffHour, 'hour');
+      const diffDay = Math.round(diffHour / 24);
+      return rtf.format(diffDay, 'day');
     }
 
-    function initSortableTable(tableId) {
-      const table = document.getElementById(tableId);
-      if (!table) return;
-      table.querySelectorAll('th[data-sort]').forEach(header => {
-        header.addEventListener('click', () => {
-          const key = header.dataset.sort;
-          const rows = Array.from(table.querySelectorAll('tbody tr'));
-          const sorted = rows.sort((a, b) => {
-            const aVal = a.dataset[key] || '';
-            const bVal = b.dataset[key] || '';
-            return aVal.localeCompare(bVal, undefined, {numeric: true});
-          });
-          sorted.forEach(row => table.querySelector('tbody').appendChild(row));
-        });
-      });
-    }
+    document.querySelectorAll('[data-relative-time]').forEach((node) => {
+      const timestamp = node.dataset.relativeTime;
+      if (!timestamp) return;
+      const date = new Date(timestamp);
+      node.textContent = formatRelativeTime(date);
+    });
   </script>
   {% block scripts %}{% endblock %}
 </body>

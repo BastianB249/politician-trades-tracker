@@ -2,33 +2,64 @@
 
 {% block content %}
 <section class="mb-8">
-  <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-      <div>
-        <p class="text-sm text-slate-500">Politician profile</p>
-        <h1 class="text-2xl font-semibold">{{ politician.name }}</h1>
-        <p class="text-sm text-slate-500">{{ politician.chamber or 'Chamber not listed' }}{% if politician.state %} • {{ politician.state }}{% endif %}</p>
-      </div>
-      <div class="bg-slate-50 rounded-xl px-4 py-3">
-        <p class="text-xs text-slate-500">Total trades</p>
-        <p class="text-lg font-semibold">{{ metrics.trade_count if metrics else 0 }}</p>
+  <div class="bg-white rounded-3xl shadow-sm border border-slate-200 p-6">
+    <div class="flex flex-col gap-4">
+      <a href="/" class="text-xs uppercase tracking-wider text-slate-400">Home / Politician profile</a>
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div>
+          <p class="text-sm text-slate-500">Politician profile</p>
+          <h1 class="text-2xl font-semibold">{{ politician.name }}</h1>
+          <p class="text-sm text-slate-500">{{ politician.chamber or 'Chamber not listed' }}{% if politician.state %} • {{ politician.state }}{% endif %}</p>
+        </div>
+        <div class="bg-slate-50 rounded-xl px-4 py-3">
+          <p class="text-xs text-slate-500">Total trades</p>
+          <p class="text-lg font-semibold">{{ metrics.trade_count if metrics else 0 }}</p>
+        </div>
       </div>
     </div>
   </div>
 </section>
 
-<section class="grid md:grid-cols-3 gap-6 mb-10">
+<section class="grid lg:grid-cols-3 gap-6 mb-10">
   <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-    <p class="text-xs uppercase text-slate-400">Excess return (1y)</p>
-    <p class="text-2xl font-semibold">{{ '%.1f%%'|format((metrics.excess_return_1y or 0) * 100) }}</p>
+    <p class="text-xs uppercase text-slate-400">Most traded tickers</p>
+    <p class="text-lg font-semibold mt-2">{{ metrics.most_traded_tickers or '—' }}</p>
+    <p class="text-xs text-slate-500 mt-1">Based on disclosed trade counts.</p>
   </div>
   <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-    <p class="text-xs uppercase text-slate-400">Excess return (5y)</p>
-    <p class="text-2xl font-semibold">{{ '%.1f%%'|format((metrics.excess_return_5y or 0) * 100) }}</p>
+    <p class="text-xs uppercase text-slate-400">Buy vs sell</p>
+    <div class="flex items-end gap-4 mt-2">
+      <div>
+        <p class="text-2xl font-semibold">{{ metrics.buy_count if metrics else 0 }}</p>
+        <p class="text-xs text-slate-500">Buys</p>
+      </div>
+      <div>
+        <p class="text-2xl font-semibold">{{ metrics.sell_count if metrics else 0 }}</p>
+        <p class="text-xs text-slate-500">Sells</p>
+      </div>
+    </div>
   </div>
   <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-    <p class="text-xs uppercase text-slate-400">Most traded</p>
-    <p class="text-2xl font-semibold">{{ metrics.most_traded_tickers or '—' }}</p>
+    <p class="text-xs uppercase text-slate-400">Performance vs SPY</p>
+    <div class="mt-2 space-y-2">
+      <div class="flex items-center justify-between text-sm">
+        <span class="text-slate-500">1y excess return</span>
+        {% if metrics and metrics.excess_return_1y is not none %}
+        <span class="font-semibold">{{ '%.1f%%'|format(metrics.excess_return_1y * 100) }}</span>
+        {% else %}
+        <span class="text-slate-400">Insufficient data</span>
+        {% endif %}
+      </div>
+      <div class="flex items-center justify-between text-sm">
+        <span class="text-slate-500">5y excess return</span>
+        {% if metrics and metrics.excess_return_5y is not none %}
+        <span class="font-semibold">{{ '%.1f%%'|format(metrics.excess_return_5y * 100) }}</span>
+        {% else %}
+        <span class="text-slate-400">Insufficient data</span>
+        {% endif %}
+      </div>
+      <p class="text-xs text-slate-400">Computed from disclosed buys; disclosures can be delayed.</p>
+    </div>
   </div>
 </section>
 
@@ -44,7 +75,7 @@
     <table id="politician-trades-table" class="min-w-full text-sm">
       <thead class="text-left text-slate-500 border-b border-slate-200">
         <tr>
-          <th class="py-2 cursor-pointer" data-sort="date">Date</th>
+          <th class="py-2">Date</th>
           <th class="py-2">Ticker</th>
           <th class="py-2">Type</th>
           <th class="py-2">Amount</th>
@@ -56,9 +87,19 @@
         <tr class="border-b border-slate-100" data-date="{{ trade.trade_date }}" data-ticker="{{ trade.ticker }}">
           <td class="py-2">{{ trade.trade_date }}</td>
           <td class="py-2 font-medium">{{ trade.ticker }}</td>
-          <td class="py-2">{{ trade.trade_type }}</td>
+          <td class="py-2">
+            <span class="inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold {% if trade.trade_type == 'BUY' %}bg-emerald-50 text-emerald-700{% else %}bg-rose-50 text-rose-700{% endif %}">
+              {{ trade.trade_type }}
+            </span>
+          </td>
           <td class="py-2">{{ trade.amount_range }}</td>
-          <td class="py-2"><a class="text-slate-900 hover:text-slate-600" href="{{ trade.source_url }}" target="_blank">View disclosure</a></td>
+          <td class="py-2">
+            {% if trade.source_url %}
+            <a class="text-slate-900 hover:text-slate-600" href="{{ trade.source_url }}" target="_blank">View disclosure</a>
+            {% else %}
+            —
+            {% endif %}
+          </td>
         </tr>
         {% endfor %}
       </tbody>
@@ -69,7 +110,17 @@
 
 {% block scripts %}
 <script>
-  initTableFilters('politician-trades-table', 'politician-trade-search');
-  initSortableTable('politician-trades-table');
+  const politicianSearch = document.getElementById('politician-trade-search');
+  const politicianTable = document.getElementById('politician-trades-table');
+
+  if (politicianSearch && politicianTable) {
+    politicianSearch.addEventListener('input', () => {
+      const query = politicianSearch.value.toLowerCase();
+      politicianTable.querySelectorAll('tbody tr').forEach(row => {
+        const text = row.innerText.toLowerCase();
+        row.classList.toggle('hidden', !text.includes(query));
+      });
+    });
+  }
 </script>
 {% endblock %}

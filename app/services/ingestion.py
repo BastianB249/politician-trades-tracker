@@ -35,11 +35,32 @@ def ingest_trades(
     price_provider: PriceProvider,
 ) -> int:
     added = 0
+    existing_keys = {
+        (
+            trade.politician_id,
+            trade.trade_date,
+            trade.ticker,
+            trade.trade_type,
+            trade.amount_range,
+            trade.source_url,
+        )
+        for trade in session.query(Trade).all()
+    }
     for source in sources:
         raw_trades = source.fetch_trades()
         for raw in raw_trades:
             politician = _get_or_create_politician(session, raw)
             normalized = normalize_trade(raw, source)
+            trade_key = (
+                politician.id,
+                normalized["trade_date"],
+                normalized["ticker"],
+                normalized["trade_type"],
+                normalized["amount_range"],
+                normalized["source_url"],
+            )
+            if trade_key in existing_keys:
+                continue
             trade = Trade(
                 politician_id=politician.id,
                 trade_date=normalized["trade_date"],
@@ -51,11 +72,12 @@ def ingest_trades(
                 source_url=normalized["source_url"],
             )
             session.add(trade)
-            try:
-                session.commit()
-                added += 1
-            except IntegrityError:
-                session.rollback()
+            existing_keys.add(trade_key)
+            added += 1
+    try:
+        session.commit()
+    except IntegrityError:
+        session.rollback()
     refresh_metrics(session, price_provider)
     session.add(IngestionLog(trades_added=added, run_at=datetime.utcnow()))
     session.commit()

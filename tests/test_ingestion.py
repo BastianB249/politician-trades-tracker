@@ -77,6 +77,8 @@ def test_deduplication() -> None:
             source_url="https://example.com",
         ),
     ]
-    added = ingest_trades(session, [DummySource(trades)], DummyPriceProvider())
-    assert added == 1
+    added_first = ingest_trades(session, [DummySource(trades)], DummyPriceProvider())
+    added_second = ingest_trades(session, [DummySource(trades)], DummyPriceProvider())
+    assert added_first == 1
+    assert added_second == 0
     assert session.query(Trade).count() == 1
