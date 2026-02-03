@@ -1,0 +1,90 @@
+[
+  {
+    "politician": "Sen. Jane Doe",
+    "chamber": "Senate",
+    "state": "CA",
+    "trade_date": "2018-01-10",
+    "ticker": "AAPL",
+    "asset_name": "Apple Inc.",
+    "type": "BUY",
+    "amount_range": "$15,001 - $50,000",
+    "source_url": "https://example.com/disclosures/jane-doe-2018-01"
+  },
+  {
+    "politician": "Sen. Jane Doe",
+    "chamber": "Senate",
+    "state": "CA",
+    "trade_date": "2018-06-15",
+    "ticker": "MSFT",
+    "asset_name": "Microsoft Corp.",
+    "type": "SELL",
+    "amount_range": "$1,001 - $15,000",
+    "source_url": "https://example.com/disclosures/jane-doe-2018-06"
+  },
+  {
+    "politician": "Rep. John Smith",
+    "chamber": "House",
+    "state": "NY",
+    "trade_date": "2019-06-01",
+    "ticker": "TSLA",
+    "asset_name": "Tesla Inc.",
+    "type": "BUY",
+    "amount_range": "$50,001 - $100,000",
+    "source_url": "https://example.com/disclosures/john-smith-2019-06"
+  },
+  {
+    "politician": "Rep. John Smith",
+    "chamber": "House",
+    "state": "NY",
+    "trade_date": "2019-06-01",
+    "ticker": "AMZN",
+    "asset_name": "Amazon.com Inc.",
+    "type": "BUY",
+    "amount_range": "$15,001 - $50,000",
+    "source_url": "https://example.com/disclosures/john-smith-2019-06-amzn"
+  },
+  {
+    "politician": "Sen. Maria Lopez",
+    "chamber": "Senate",
+    "state": "TX",
+    "trade_date": "2018-01-10",
+    "ticker": "MSFT",
+    "asset_name": "Microsoft Corp.",
+    "type": "BUY",
+    "amount_range": "$50,001 - $100,000",
+    "source_url": "https://example.com/disclosures/maria-lopez-2018-01"
+  },
+  {
+    "politician": "Sen. Maria Lopez",
+    "chamber": "Senate",
+    "state": "TX",
+    "trade_date": "2019-06-01",
+    "ticker": "AAPL",
+    "asset_name": "Apple Inc.",
+    "type": "BUY",
+    "amount_range": "$15,001 - $50,000",
+    "source_url": "https://example.com/disclosures/maria-lopez-2019-06"
+  },
+  {
+    "politician": "Rep. Aaron Lee",
+    "chamber": "House",
+    "state": "WA",
+    "trade_date": "2018-01-10",
+    "ticker": "TSLA",
+    "asset_name": "Tesla Inc.",
+    "type": "SELL",
+    "amount_range": "$1,001 - $15,000",
+    "source_url": "https://example.com/disclosures/aaron-lee-2018-01"
+  },
+  {
+    "politician": "Rep. Aaron Lee",
+    "chamber": "House",
+    "state": "WA",
+    "trade_date": "2018-06-15",
+    "ticker": "NVDA",
+    "asset_name": "NVIDIA Corp.",
+    "type": "BUY",
+    "amount_range": "$15,001 - $50,000",
+    "source_url": "https://example.com/disclosures/aaron-lee-2018-06"
+  }
+]
