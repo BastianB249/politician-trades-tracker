@@ -30,6 +30,8 @@ class PoliticianOut(BaseModel):
     most_traded_tickers: str | None = None
     excess_return_1y: float | None = None
     excess_return_5y: float | None = None
+    top_tickers: list[str] | None = None
+    metrics_summary: dict[str, float | int | None] | None = None
 
 
 class MetaOut(BaseModel):

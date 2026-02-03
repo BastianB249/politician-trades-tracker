@@ -2,11 +2,40 @@
 
 {% block content %}
 <section class="mb-10">
-  <div class="bg-gradient-to-r from-slate-900 to-slate-700 rounded-2xl p-8 text-white shadow">
-    <p class="uppercase tracking-wider text-sm text-slate-200">Capitol Trades Tracker</p>
-    <h1 class="text-3xl md:text-4xl font-semibold mt-2">Track disclosed trades by US lawmakers.</h1>
-    <p class="mt-3 text-slate-200 max-w-2xl">Search the latest disclosures, explore top performers, and understand how returns compare with the S&P 500 (SPY).</p>
-    <div class="mt-4 text-sm">Last updated: <span class="font-medium">{{ last_ingestion.run_at if last_ingestion else 'Not yet updated' }}</span></div>
+  <div class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 rounded-3xl p-8 md:p-10 text-white shadow-lg">
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
+      <div>
+        <p class="uppercase tracking-wider text-xs text-slate-200">Capitol Trades Tracker</p>
+        <h1 class="text-3xl md:text-4xl font-semibold mt-3">Follow publicly disclosed trades with clarity.</h1>
+        <p class="mt-3 text-slate-200 max-w-2xl">
+          Explore the latest congressional disclosures, review computed returns against SPY, and dig into individual
+          trade histories. Disclosures can be delayed and are presented for transparency.
+        </p>
+        <div class="mt-5 text-sm text-slate-200">
+          {% if last_ingestion %}
+          Last updated:
+          <span class="font-semibold" data-relative-time="{{ last_ingestion.run_at.isoformat() }}" title="{{ last_ingestion.run_at }}">—</span>
+          <span class="ml-2 text-xs text-slate-300">{{ last_ingestion.run_at }}</span>
+          {% else %}
+          Last updated: <span class="font-semibold">Not yet updated</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full lg:max-w-md">
+        <div class="rounded-2xl bg-white/10 border border-white/15 p-4">
+          <p class="text-xs uppercase text-slate-200">Tracked trades</p>
+          <p class="text-2xl font-semibold mt-1">{{ trade_count }}</p>
+        </div>
+        <div class="rounded-2xl bg-white/10 border border-white/15 p-4">
+          <p class="text-xs uppercase text-slate-200">Politicians</p>
+          <p class="text-2xl font-semibold mt-1">{{ politician_count }}</p>
+        </div>
+        <div class="rounded-2xl bg-white/10 border border-white/15 p-4">
+          <p class="text-xs uppercase text-slate-200">Tickers</p>
+          <p class="text-2xl font-semibold mt-1">{{ ticker_count }}</p>
+        </div>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -17,29 +46,77 @@
         <h2 class="text-xl font-semibold">Latest disclosed trades</h2>
         <p class="text-sm text-slate-500">Sorted by most recent trade date.</p>
       </div>
-      <input id="trade-search" type="text" placeholder="Search trades" class="border border-slate-200 rounded-full px-4 py-2 text-sm" />
+      <input id="trade-search" type="text" placeholder="Search by politician or ticker" class="border border-slate-200 rounded-full px-4 py-2 text-sm w-full md:w-60" />
+    </div>
+    <div class="flex flex-col lg:flex-row lg:items-center gap-3 mb-4 text-sm">
+      <div class="flex flex-wrap gap-2">
+        <select id="trade-type" class="border border-slate-200 rounded-full px-3 py-2 text-sm">
+          <option value="">All types</option>
+          <option value="BUY">Buy</option>
+          <option value="SELL">Sell</option>
+        </select>
+        <div>
+          <input id="trade-ticker" list="trade-ticker-list" placeholder="Filter ticker" class="border border-slate-200 rounded-full px-3 py-2 text-sm w-40" />
+          <datalist id="trade-ticker-list">
+            {% for ticker in ticker_options %}
+            <option value="{{ ticker }}"></option>
+            {% endfor %}
+          </datalist>
+        </div>
+        <div>
+          <input id="trade-politician" list="trade-politician-list" placeholder="Filter politician" class="border border-slate-200 rounded-full px-3 py-2 text-sm w-48" />
+          <datalist id="trade-politician-list">
+            {% for name in politician_options %}
+            <option value="{{ name }}"></option>
+            {% endfor %}
+          </datalist>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <label class="text-xs uppercase tracking-wide text-slate-400">Sort</label>
+        <select id="trade-sort" class="border border-slate-200 rounded-full px-3 py-2 text-sm">
+          <option value="trade_date_desc">Trade date (newest)</option>
+          <option value="trade_date_asc">Trade date (oldest)</option>
+          <option value="amount_desc">Amount (high to low)</option>
+          <option value="amount_asc">Amount (low to high)</option>
+        </select>
+      </div>
     </div>
     <div class="overflow-x-auto">
       <table id="trades-table" class="min-w-full text-sm">
         <thead class="text-left text-slate-500 border-b border-slate-200">
           <tr>
-            <th class="py-2 cursor-pointer" data-sort="date">Date</th>
-            <th class="py-2 cursor-pointer" data-sort="politician">Politician</th>
+            <th class="py-2">Date</th>
+            <th class="py-2">Politician</th>
             <th class="py-2">Ticker</th>
             <th class="py-2">Type</th>
             <th class="py-2">Amount</th>
+            <th class="py-2">Source</th>
           </tr>
         </thead>
         <tbody>
           {% for trade in trades %}
-          <tr class="border-b border-slate-100" data-date="{{ trade.trade_date }}" data-politician="{{ trade.politician.name }}">
+          <tr class="border-b border-slate-100" data-date="{{ trade.trade_date }}" data-politician="{{ trade.politician.name }}" data-ticker="{{ trade.ticker }}" data-type="{{ trade.trade_type }}" data-amount="{{ trade.amount_range }}">
             <td class="py-2">{{ trade.trade_date }}</td>
             <td class="py-2">
               <a class="text-slate-900 hover:text-slate-600" href="/politicians/{{ trade.politician_id }}">{{ trade.politician.name }}</a>
             </td>
-            <td class="py-2 font-medium">{{ trade.ticker }}</td>
-            <td class="py-2">{{ trade.trade_type }}</td>
+            <td class="py-2 font-medium">
+              <button class="text-slate-900 hover:text-slate-600" data-ticker-filter="{{ trade.ticker }}">{{ trade.ticker }}</button>
+            </td>
+            <td class="py-2">
+              <span class="inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold {% if trade.trade_type == 'BUY' %}bg-emerald-50 text-emerald-700{% else %}bg-rose-50 text-rose-700{% endif %}">
+                {{ trade.trade_type }}
+              </span>
+            </td>
             <td class="py-2">{{ trade.amount_range }}</td>
+            <td class="py-2">
+              {% if trade.source_url %}
+              <a class="text-slate-900 hover:text-slate-600" href="{{ trade.source_url }}" target="_blank">Disclosure</a>
+              {% else %}
+              —
+              {% endif %}
+            </td>
           </tr>
           {% endfor %}
         </tbody>
@@ -47,18 +124,22 @@
     </div>
   </div>
   <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-    <h2 class="text-xl font-semibold">Top performers (computed)</h2>
+    <h2 class="text-xl font-semibold">Leaderboard</h2>
     <p class="text-sm text-slate-500 mb-4">Excess return vs SPY, 5y window.</p>
     <div class="space-y-3">
       {% for politician, metrics in top_performers %}
       <div class="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3">
         <div>
-          <p class="font-medium">{{ politician.name }}</p>
+          <a class="font-medium text-slate-900 hover:text-slate-600" href="/politicians/{{ politician.id }}">{{ politician.name }}</a>
           <p class="text-xs text-slate-500">{{ metrics.most_traded_tickers or 'No trades yet' }}</p>
         </div>
         <div class="text-right">
-          <p class="text-sm font-semibold">{{ '%.1f%%'|format((metrics.excess_return_5y or 0) * 100) }}</p>
+          {% if metrics.excess_return_5y is not none %}
+          <p class="text-sm font-semibold">{{ '%.1f%%'|format(metrics.excess_return_5y * 100) }}</p>
           <p class="text-xs text-slate-500">Excess 5y</p>
+          {% else %}
+          <p class="text-sm font-semibold text-slate-400">Insufficient data</p>
+          {% endif %}
         </div>
       </div>
       {% endfor %}
@@ -84,7 +165,79 @@
 
 {% block scripts %}
 <script>
-  initTableFilters('trades-table', 'trade-search');
-  initSortableTable('trades-table');
+  const tradeSearch = document.getElementById('trade-search');
+  const tradeType = document.getElementById('trade-type');
+  const tradeTicker = document.getElementById('trade-ticker');
+  const tradePolitician = document.getElementById('trade-politician');
+  const tradeSort = document.getElementById('trade-sort');
+  const tradeTable = document.getElementById('trades-table');
+
+  function amountValue(amountRange) {
+    const lower = amountRange.split('-')[0] || '';
+    const digits = lower.replace(/[^0-9]/g, '');
+    return parseInt(digits || '0', 10);
+  }
+
+  function applyTradeFilters() {
+    const query = (tradeSearch?.value || '').toLowerCase();
+    const type = tradeType?.value || '';
+    const ticker = (tradeTicker?.value || '').toUpperCase();
+    const politician = (tradePolitician?.value || '').toLowerCase();
+    const rows = Array.from(tradeTable.querySelectorAll('tbody tr'));
+
+    rows.forEach(row => {
+      const rowTicker = row.dataset.ticker || '';
+      const rowType = row.dataset.type || '';
+      const rowPolitician = row.dataset.politician || '';
+      const rowText = row.innerText.toLowerCase();
+      const matchesQuery = !query || rowText.includes(query);
+      const matchesType = !type || rowType === type;
+      const matchesTicker = !ticker || rowTicker === ticker;
+      const matchesPolitician = !politician || rowPolitician.toLowerCase().includes(politician);
+      row.classList.toggle('hidden', !(matchesQuery && matchesType && matchesTicker && matchesPolitician));
+    });
+  }
+
+  function applyTradeSort() {
+    const rows = Array.from(tradeTable.querySelectorAll('tbody tr'));
+    const sort = tradeSort?.value || 'trade_date_desc';
+    const sorted = rows.sort((a, b) => {
+      if (sort.startsWith('trade_date')) {
+        const aDate = a.dataset.date || '';
+        const bDate = b.dataset.date || '';
+        return sort === 'trade_date_asc' ? aDate.localeCompare(bDate) : bDate.localeCompare(aDate);
+      }
+      if (sort.startsWith('amount')) {
+        const aAmount = amountValue(a.dataset.amount || '');
+        const bAmount = amountValue(b.dataset.amount || '');
+        return sort === 'amount_asc' ? aAmount - bAmount : bAmount - aAmount;
+      }
+      return 0;
+    });
+    sorted.forEach(row => tradeTable.querySelector('tbody').appendChild(row));
+  }
+
+  [tradeSearch, tradeType, tradeTicker, tradePolitician].forEach(el => {
+    if (el) {
+      el.addEventListener('input', applyTradeFilters);
+      el.addEventListener('change', applyTradeFilters);
+    }
+  });
+
+  if (tradeSort) {
+    tradeSort.addEventListener('change', () => {
+      applyTradeSort();
+      applyTradeFilters();
+    });
+  }
+
+  document.querySelectorAll('[data-ticker-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      tradeTicker.value = btn.dataset.tickerFilter;
+      applyTradeFilters();
+    });
+  });
+
+  applyTradeSort();
 </script>
 {% endblock %}

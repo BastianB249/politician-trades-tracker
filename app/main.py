@@ -7,8 +7,9 @@ from fastapi import Depends, FastAPI, Query, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.db import SessionLocal, init_db
 from app.models import IngestionLog, Metrics, Politician, Trade
@@ -25,6 +26,24 @@ app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="stat
 @app.on_event("startup")
 def startup() -> None:
     init_db()
+
+
+@app.exception_handler(StarletteHTTPException)
+def http_exception_handler(request: Request, exc: StarletteHTTPException) -> HTMLResponse:
+    if exc.status_code == 404:
+        return TEMPLATES.TemplateResponse(
+            "404.html", {"request": request}, status_code=404
+        )
+    return TEMPLATES.TemplateResponse(
+        "500.html", {"request": request, "detail": exc.detail}, status_code=exc.status_code
+    )
+
+
+@app.exception_handler(Exception)
+def unhandled_exception_handler(request: Request, exc: Exception) -> HTMLResponse:
+    return TEMPLATES.TemplateResponse(
+        "500.html", {"request": request, "detail": str(exc)}, status_code=500
+    )
 
 
 def get_db() -> Session:
@@ -46,6 +65,17 @@ def home(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
         .all()
     )
     last_ingestion = db.query(IngestionLog).order_by(IngestionLog.run_at.desc()).first()
+    trade_count = db.query(func.count(Trade.id)).scalar() or 0
+    politician_count = db.query(func.count(Politician.id)).scalar() or 0
+    ticker_count = db.query(func.count(func.distinct(Trade.ticker))).scalar() or 0
+    ticker_options = [
+        row[0]
+        for row in db.query(Trade.ticker).distinct().order_by(Trade.ticker.asc()).all()
+    ]
+    politician_options = [
+        row[0]
+        for row in db.query(Politician.name).order_by(Politician.name.asc()).all()
+    ]
     return TEMPLATES.TemplateResponse(
         "home.html",
         {
@@ -53,6 +83,11 @@ def home(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
             "trades": trades,
             "top_performers": top_performers,
             "last_ingestion": last_ingestion,
+            "trade_count": trade_count,
+            "politician_count": politician_count,
+            "ticker_count": ticker_count,
+            "ticker_options": ticker_options,
+            "politician_options": politician_options,
         },
     )
 
@@ -89,6 +124,7 @@ def about(request: Request) -> HTMLResponse:
 
 @app.get("/api/trades", response_model=list[TradeOut])
 def api_trades(
+    q: str | None = None,
     politician_id: int | None = None,
     ticker: str | None = None,
     trade_type: str | None = Query(None, alias="type"),
@@ -96,6 +132,7 @@ def api_trades(
     date_to: date | None = None,
     limit: int = 100,
     offset: int = 0,
+    sort: str | None = None,
     db: Session = Depends(get_db),
 ) -> list[TradeOut]:
     query = db.query(Trade)
@@ -109,8 +146,30 @@ def api_trades(
         query = query.filter(Trade.trade_date >= date_from)
     if date_to:
         query = query.filter(Trade.trade_date <= date_to)
-    trades = query.order_by(Trade.trade_date.desc()).offset(offset).limit(limit).all()
-    return [TradeOut.model_validate(trade) for trade in trades]
+    if q:
+        query = query.join(Politician).filter(
+            or_(
+                Trade.ticker.ilike(f"%{q}%"),
+                Politician.name.ilike(f"%{q}%"),
+            )
+        )
+    sort = (sort or "trade_date_desc").lower()
+    if sort == "trade_date_asc":
+        query = query.order_by(Trade.trade_date.asc())
+    else:
+        query = query.order_by(Trade.trade_date.desc())
+    trades = query.all()
+
+    if sort in {"amount_asc", "amount_desc"}:
+        def amount_key(trade: Trade) -> int:
+            lower = trade.amount_range.split("-")[0]
+            digits = "".join(ch for ch in lower if ch.isdigit())
+            return int(digits or 0)
+
+        trades.sort(key=amount_key, reverse=sort == "amount_desc")
+
+    sliced = trades[offset : offset + limit]
+    return [TradeOut.model_validate(trade) for trade in sliced]
 
 
 @app.get("/api/politicians", response_model=list[PoliticianOut])
@@ -122,6 +181,8 @@ def api_politicians(
     query = db.query(Politician, Metrics).join(Metrics, Metrics.politician_id == Politician.id)
     if sort == "excess_return_5y":
         query = query.order_by(Metrics.excess_return_5y.desc().nullslast())
+    elif sort == "trade_count":
+        query = query.order_by(Metrics.trade_count.desc().nullslast())
     elif sort == "excess_return_1y":
         query = query.order_by(Metrics.excess_return_1y.desc().nullslast())
     results = query.all()
@@ -139,6 +200,16 @@ def api_politicians(
                 most_traded_tickers=metrics.most_traded_tickers,
                 excess_return_1y=metrics.excess_return_1y,
                 excess_return_5y=metrics.excess_return_5y,
+                top_tickers=metrics.most_traded_tickers.split(", ")
+                if metrics.most_traded_tickers
+                else [],
+                metrics_summary={
+                    "trade_count": metrics.trade_count,
+                    "buy_count": metrics.buy_count,
+                    "sell_count": metrics.sell_count,
+                    "excess_return_1y": metrics.excess_return_1y,
+                    "excess_return_5y": metrics.excess_return_5y,
+                },
             )
         )
     return response
@@ -148,6 +219,9 @@ def api_politicians(
 def api_politician(politician_id: int, db: Session = Depends(get_db)) -> PoliticianOut:
     politician = db.query(Politician).filter(Politician.id == politician_id).one()
     metrics = db.query(Metrics).filter(Metrics.politician_id == politician_id).one_or_none()
+    top_tickers: list[str] = []
+    if metrics and metrics.most_traded_tickers:
+        top_tickers = metrics.most_traded_tickers.split(", ")
     return PoliticianOut(
         id=politician.id,
         name=politician.name,
@@ -159,6 +233,14 @@ def api_politician(politician_id: int, db: Session = Depends(get_db)) -> Politic
         most_traded_tickers=metrics.most_traded_tickers if metrics else None,
         excess_return_1y=metrics.excess_return_1y if metrics else None,
         excess_return_5y=metrics.excess_return_5y if metrics else None,
+        top_tickers=top_tickers,
+        metrics_summary={
+            "trade_count": metrics.trade_count if metrics else None,
+            "buy_count": metrics.buy_count if metrics else None,
+            "sell_count": metrics.sell_count if metrics else None,
+            "excess_return_1y": metrics.excess_return_1y if metrics else None,
+            "excess_return_5y": metrics.excess_return_5y if metrics else None,
+        },
     )
 
 

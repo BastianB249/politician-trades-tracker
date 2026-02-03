@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 from datetime import date
+from pathlib import Path
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.db import Base
 from app.models import Politician, Trade
+from app.services.ingestion import ingest_trades
 from app.services.metrics import compute_excess_returns, refresh_metrics
 from app.services.prices.base import PriceProvider
+from app.services.prices.sample_csv_prices import SampleCsvPriceProvider
+from app.services.sources.sample_json_source import SampleJsonSource
 
 
 class DictPriceProvider(PriceProvider):
@@ -82,3 +86,19 @@ def test_refresh_metrics() -> None:
     assert metrics.trade_count == 1
     assert metrics.buy_count == 1
     assert metrics.sell_count == 0
+
+
+def test_sample_metrics_have_non_zero_returns() -> None:
+    session = create_session()
+    base_dir = Path(__file__).resolve().parents[1]
+    trades_source = SampleJsonSource(base_dir / "data" / "sample_trades.json")
+    price_provider = SampleCsvPriceProvider(base_dir / "data" / "sample_prices.csv")
+
+    ingest_trades(session, [trades_source], price_provider)
+
+    metrics_values = [
+        politician.metrics.excess_return_5y
+        for politician in session.query(Politician).all()
+        if politician.metrics is not None
+    ]
+    assert any(value is not None and abs(value) > 0.001 for value in metrics_values)
